@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import { transactionService } from "@/services/transactionService";
 import AppLayout from "@/components/layout/AppLayout";
+import { useConfirm } from "@/context/ConfirmContext";
 import { ArrowDownCircle, Plus, Trash2 } from "lucide-react";
+import { categoryService, Category } from "@/services/categoryService";
 
 interface IncomeTransaction {
   id: string;
@@ -15,6 +17,8 @@ interface IncomeTransaction {
 }
 
 export default function IncomePage() {
+  const { showConfirm } = useConfirm();
+  const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<IncomeTransaction[]>([]);
 
   const [title, setTitle] = useState("");
@@ -23,21 +27,28 @@ export default function IncomePage() {
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
-    const loadTransactions = async () => {
+    const loadData = async () => {
       try {
-        const data = await transactionService.getTransactions("income");
+        const [transactionsData, categoriesData] = await Promise.all([
+          transactionService.getTransactions("income"),
+          categoryService.getCategories(),
+        ]);
 
-        setTransactions((data as IncomeTransaction[]) || []);
+        // transactions
+        setTransactions((transactionsData as IncomeTransaction[]) || []);
+
+        // 🔥 ambil hanya category income
+        setCategories(categoriesData.filter((c) => c.type === "income"));
       } catch (error: unknown) {
         if (error instanceof Error) {
           alert(error.message);
         } else {
-          alert("Terjadi kesalahan saat mengambil data income");
+          alert("Terjadi kesalahan saat mengambil data");
         }
       }
     };
 
-    loadTransactions();
+    loadData();
   }, []);
 
   const refreshData = async () => {
@@ -139,12 +150,19 @@ export default function IncomePage() {
                   onChange={(e) => setAmount(e.target.value)}
                 />
 
-                <input
-                  placeholder="Category"
-                  className="h-14 px-4 rounded-2xl border border-slate-200 bg-[#F8FAFC] outline-none focus:ring-2 focus:ring-[#16A34A]/20"
+                <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                />
+                  className="h-14 px-4 rounded-2xl border border-slate-200 bg-[#F8FAFC]"
+                >
+                  <option value="">Select Category</option>
+
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
 
                 <input
                   placeholder="Notes"
@@ -229,7 +247,14 @@ export default function IncomePage() {
                     </p>
 
                     <button
-                      onClick={() => handleDelete(item.id)}
+                      onClick={() =>
+                        showConfirm({
+                          title: "Delete Income",
+                          message:
+                            "Are you sure you want to delete this income record?",
+                          onConfirm: () => handleDelete(item.id),
+                        })
+                      }
                       className="mt-2 inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
                     >
                       <Trash2 size={15} />

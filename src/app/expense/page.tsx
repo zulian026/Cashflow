@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import { transactionService } from "@/services/transactionService";
 import AppLayout from "@/components/layout/AppLayout";
+import { useConfirm } from "@/context/ConfirmContext";
 import { ArrowUpCircle, Plus, Trash2 } from "lucide-react";
+import { categoryService, Category } from "@/services/categoryService";
 
 interface ExpenseTransaction {
   id: string;
@@ -15,7 +17,9 @@ interface ExpenseTransaction {
 }
 
 export default function ExpensePage() {
+  const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<ExpenseTransaction[]>([]);
+  const { showConfirm } = useConfirm();
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
@@ -23,11 +27,17 @@ export default function ExpensePage() {
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
-    const loadTransactions = async () => {
+    const loadData = async () => {
       try {
-        const data = await transactionService.getTransactions("expense");
+        const [transactionsData, categoriesData] = await Promise.all([
+          transactionService.getTransactions("expense"),
+          categoryService.getCategories(),
+        ]);
 
-        setTransactions((data as ExpenseTransaction[]) || []);
+        setTransactions((transactionsData as ExpenseTransaction[]) || []);
+
+        // 🔥 hanya category expense
+        setCategories(categoriesData.filter((c) => c.type === "expense"));
       } catch (error: unknown) {
         if (error instanceof Error) {
           alert(error.message);
@@ -37,7 +47,7 @@ export default function ExpensePage() {
       }
     };
 
-    loadTransactions();
+    loadData();
   }, []);
 
   const refreshData = async () => {
@@ -139,12 +149,19 @@ export default function ExpensePage() {
                   onChange={(e) => setAmount(e.target.value)}
                 />
 
-                <input
-                  placeholder="Category"
-                  className="h-14 px-4 rounded-2xl border border-slate-200 bg-[#F8FAFC] outline-none focus:ring-2 focus:ring-red-200"
+                <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                />
+                  className="h-14 px-4 rounded-2xl border border-slate-200 bg-[#F8FAFC] outline-none focus:ring-2 focus:ring-red-200"
+                >
+                  <option value="">Select Category</option>
+
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
 
                 <input
                   placeholder="Notes"
@@ -229,7 +246,14 @@ export default function ExpensePage() {
                     </p>
 
                     <button
-                      onClick={() => handleDelete(item.id)}
+                      onClick={() =>
+                        showConfirm({
+                          title: "Delete Expense",
+                          message:
+                            "Are you sure you want to delete this expense record?",
+                          onConfirm: () => handleDelete(item.id),
+                        })
+                      }
                       className="mt-2 inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
                     >
                       <Trash2 size={15} />

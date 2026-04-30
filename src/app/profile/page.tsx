@@ -4,12 +4,8 @@ import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
 import { profileService } from "@/services/profileService";
-import {
-  User,
-  Mail,
-  Save,
-  Shield,
-} from "lucide-react";
+import PageSkeleton from "@/components/skeleton/PageSkeleton";
+import { User, Mail, Save, Shield } from "lucide-react";
 
 interface ProfileData {
   id: string;
@@ -18,8 +14,7 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-  const [profile, setProfile] =
-    useState<ProfileData | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
 
   const [fullName, setFullName] = useState("");
 
@@ -29,8 +24,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const data =
-          await profileService.getProfile();
+        const data = await profileService.getProfile();
 
         setProfile(data);
         setFullName(data.full_name);
@@ -38,9 +32,7 @@ export default function ProfilePage() {
         if (error instanceof Error) {
           alert(error.message);
         } else {
-          alert(
-            "Terjadi kesalahan saat mengambil profile",
-          );
+          alert("Terjadi kesalahan saat mengambil profile");
         }
       } finally {
         setLoading(false);
@@ -75,9 +67,7 @@ export default function ProfilePage() {
       if (error instanceof Error) {
         alert(error.message);
       } else {
-        alert(
-          "Terjadi kesalahan saat update profile",
-        );
+        alert("Terjadi kesalahan saat update profile");
       }
     } finally {
       setSaving(false);
@@ -86,16 +76,15 @@ export default function ProfilePage() {
 
   if (loading || !profile) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
-        <h1 className="text-lg font-medium text-slate-600">
-          Loading...
-        </h1>
-      </main>
+      <AuthGuard>
+        <AppLayout>
+          <PageSkeleton />
+        </AppLayout>
+      </AuthGuard>
     );
   }
 
-  const firstLetter =
-    profile.full_name?.charAt(0).toUpperCase() || "U";
+  const firstLetter = profile.full_name?.charAt(0).toUpperCase() || "U";
 
   return (
     <AuthGuard>
@@ -105,9 +94,7 @@ export default function ProfilePage() {
           <section className="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-500">
-                  Profile Settings
-                </p>
+                <p className="text-sm text-slate-500">Profile Settings</p>
                 <h1 className="text-3xl font-bold text-slate-900 mt-1">
                   Manage Your Account
                 </h1>
@@ -132,17 +119,12 @@ export default function ProfilePage() {
                   {profile.full_name}
                 </h2>
 
-                <p className="text-sm text-slate-500 mt-1">
-                  {profile.email}
-                </p>
+                <p className="text-sm text-slate-500 mt-1">{profile.email}</p>
 
                 <div className="mt-6 w-full">
                   <div className="rounded-2xl bg-[#F8FAFC] p-4 border border-slate-100">
                     <div className="flex items-center gap-3">
-                      <Shield
-                        size={20}
-                        className="text-[#16A34A]"
-                      />
+                      <Shield size={20} className="text-[#16A34A]" />
                       <div className="text-left">
                         <p className="font-medium text-slate-800">
                           Account Status
@@ -159,9 +141,7 @@ export default function ProfilePage() {
 
             {/* RIGHT FORM */}
             <div className="lg:col-span-2 bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm">
-              <h2 className="text-xl font-bold mb-6">
-                Personal Information
-              </h2>
+              <h2 className="text-xl font-bold mb-6">Personal Information</h2>
 
               <div className="space-y-5">
                 {/* EMAIL */}
@@ -200,9 +180,7 @@ export default function ProfilePage() {
                     <input
                       type="text"
                       value={fullName}
-                      onChange={(e) =>
-                        setFullName(e.target.value)
-                      }
+                      onChange={(e) => setFullName(e.target.value)}
                       placeholder="Enter full name"
                       className="w-full h-14 pl-11 pr-4 rounded-2xl border border-slate-200 bg-[#F8FAFC] outline-none focus:ring-2 focus:ring-[#16A34A]/20"
                     />
@@ -216,9 +194,7 @@ export default function ProfilePage() {
                   className="mt-2 h-14 px-6 rounded-2xl bg-[#16A34A] text-white font-medium flex items-center gap-2 hover:opacity-90 transition"
                 >
                   <Save size={18} />
-                  {saving
-                    ? "Saving..."
-                    : "Update Profile"}
+                  {saving ? "Saving..." : "Update Profile"}
                 </button>
               </div>
             </div>

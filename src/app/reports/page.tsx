@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
 import FinanceChart from "@/components/charts/FinanceChart";
+import PageSkeleton from "@/components/skeleton/PageSkeleton";
 import {
   Wallet,
   TrendingUp,
@@ -67,9 +68,11 @@ export default function ReportsPage() {
 
   if (loading || !reportData) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
-        <h1 className="text-lg font-medium text-slate-600">Loading...</h1>
-      </main>
+      <AuthGuard>
+        <AppLayout>
+          <PageSkeleton />
+        </AppLayout>
+      </AuthGuard>
     );
   }
 
