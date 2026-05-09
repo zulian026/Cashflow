@@ -5,7 +5,9 @@ import AuthGuard from "@/components/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
 import { profileService } from "@/services/profileService";
 import PageSkeleton from "@/components/skeleton/PageSkeleton";
+import { useConfirm } from "@/context/ConfirmContext";
 import { User, Mail, Save, Shield } from "lucide-react";
+import { useToast } from "@/components/ToastProvider";
 
 interface ProfileData {
   id: string;
@@ -15,8 +17,10 @@ interface ProfileData {
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
-
+  const [resetting, setResetting] = useState(false);
   const [fullName, setFullName] = useState("");
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,7 +57,7 @@ export default function ProfilePage() {
 
       await profileService.updateProfile(fullName);
 
-      alert("Profile berhasil diperbarui");
+      showToast("Profile berhasil diperbarui", "success");
 
       setProfile((prev) =>
         prev
@@ -71,6 +75,35 @@ export default function ProfilePage() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResetData = async () => {
+    const ok = await confirm({
+      title: "Reset All Data",
+      message:
+        "⚠️ Semua data akan dihapus permanen dan tidak bisa dikembalikan.",
+      variant: "danger",
+    });
+
+    if (!ok) return;
+
+    try {
+      setResetting(true);
+
+      await profileService.resetUserData();
+
+      showToast("Semua data berhasil direset", "success");
+
+      window.location.reload();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        showToast(error.message, "error");
+      } else {
+        showToast("Terjadi kesalahan saat reset data", "error");
+      }
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -195,6 +228,24 @@ export default function ProfilePage() {
                 >
                   <Save size={18} />
                   {saving ? "Saving..." : "Update Profile"}
+                </button>
+              </div>
+
+              <div className="mt-8 border-t border-gray-200 pt-6">
+                <p className="text-sm font-semibold text-red-500 mb-3">
+                  Danger Zone
+                </p>
+
+                <p className="text-sm text-slate-500 mb-4">
+                  All data will be permanently deleted and cannot be recovered.
+                </p>
+
+                <button
+                  onClick={handleResetData}
+                  disabled={resetting}
+                  className="h-14 px-6 rounded-2xl bg-red-500 text-white font-medium hover:bg-red-600 transition"
+                >
+                  {resetting ? "Resetting..." : "Reset All Data"}
                 </button>
               </div>
             </div>

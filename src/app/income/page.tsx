@@ -7,6 +7,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import { useConfirm } from "@/context/ConfirmContext";
 import { ArrowDownCircle, Plus, Trash2 } from "lucide-react";
 import { categoryService, Category } from "@/services/categoryService";
+import { useToast } from "@/components/ToastProvider";
+import { savingService } from "@/services/savingService";
 
 interface IncomeTransaction {
   id: string;
@@ -16,15 +18,29 @@ interface IncomeTransaction {
   created_at: string;
 }
 
+interface SavingGoal {
+  id: string;
+  title: string;
+  target_amount: number;
+  current_amount: number;
+}
+
 export default function IncomePage() {
-  const { showConfirm } = useConfirm();
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<IncomeTransaction[]>([]);
+  const [savingGoals, setSavingGoals] = useState<SavingGoal[]>([]);
+  const [selectedGoal, setSelectedGoal] = useState("");
+  const [savingAmount, setSavingAmount] = useState("");
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
+
+  const getErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error ? error.message : fallback;
 
   useEffect(() => {
     const loadData = async () => {
@@ -34,21 +50,26 @@ export default function IncomePage() {
           categoryService.getCategories(),
         ]);
 
-        // transactions
         setTransactions((transactionsData as IncomeTransaction[]) || []);
-
-        // 🔥 ambil hanya category income
         setCategories(categoriesData.filter((c) => c.type === "income"));
       } catch (error: unknown) {
-        if (error instanceof Error) {
-          alert(error.message);
-        } else {
-          alert("Terjadi kesalahan saat mengambil data");
-        }
+        showToast(
+          getErrorMessage(error, "Terjadi kesalahan saat mengambil data"),
+          "error",
+        );
       }
     };
 
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const loadSavingGoals = async () => {
+      const data = await savingService.getSavingGoals();
+      setSavingGoals(data || []);
+    };
+
+    loadSavingGoals();
   }, []);
 
   const refreshData = async () => {
@@ -57,54 +78,77 @@ export default function IncomePage() {
 
       setTransactions((data as IncomeTransaction[]) || []);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert("Terjadi kesalahan saat refresh data income");
-      }
+      showToast(
+        getErrorMessage(error, "Terjadi kesalahan saat refresh data income"),
+        "error",
+      );
     }
   };
 
   const handleAdd = async () => {
     if (!title || !amount) {
-      alert("Title & Amount wajib");
+      showToast("Title & Amount wajib", "error");
+      return;
+    }
+
+    const incomeAmount = Number(amount);
+    const savingValue = Number(savingAmount || 0);
+
+    if (savingValue > incomeAmount) {
+      showToast("Saving tidak boleh lebih dari income", "error");
       return;
     }
 
     try {
+      // 1. simpan income
       await transactionService.addTransaction("income", {
         title,
-        amount: Number(amount),
+        amount: incomeAmount,
         category,
         notes,
       });
 
+      // 2. AUTO MASUK KE SAVING
+      if (selectedGoal && savingValue > 0) {
+        await savingService.addSavingAmount(selectedGoal, savingValue);
+      }
+
+      // reset
       setTitle("");
       setAmount("");
       setCategory("");
       setNotes("");
+      setSelectedGoal("");
+      setSavingAmount("");
+
+      showToast("Income & saving berhasil ditambahkan", "success");
 
       await refreshData();
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert("Terjadi kesalahan saat menambahkan income");
-      }
+      showToast(getErrorMessage(error, "Terjadi kesalahan"), "error");
     }
   };
 
   const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: "Delete Income",
+      message: "Yakin ingin menghapus income ini?",
+      variant: "danger",
+    });
+
+    if (!ok) return;
+
     try {
       await transactionService.deleteTransaction("income", id);
 
+      showToast("Income berhasil dihapus", "success");
+
       await refreshData();
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert("Terjadi kesalahan saat menghapus income");
-      }
+      showToast(
+        getErrorMessage(error, "Terjadi kesalahan saat menghapus income"),
+        "error",
+      );
     }
   };
 
@@ -163,6 +207,35 @@ export default function IncomePage() {
                     </option>
                   ))}
                 </select>
+
+                <select
+                  value={selectedGoal}
+                  onChange={(e) => setSelectedGoal(e.target.value)}
+                  className="h-14 px-4 rounded-2xl border bg-[#F8FAFC]"
+                >
+                  <option value="">Pilih Saving Goal (opsional)</option>
+                  {savingGoals.map((goal) => (
+                    <option key={goal.id} value={goal.id}>
+                      {goal.title}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="number"
+                  placeholder="Jumlah untuk ditabung (opsional)"
+                  value={savingAmount}
+                  onChange={(e) => setSavingAmount(e.target.value)}
+                  className="h-14 px-4 rounded-2xl border bg-[#F8FAFC]"
+                />
+                {amount && (
+                  <p className="text-sm text-slate-500">
+                    Sisa: Rp{" "}
+                    {(
+                      Number(amount || 0) - Number(savingAmount || 0)
+                    ).toLocaleString()}
+                  </p>
+                )}
 
                 <input
                   placeholder="Notes"
@@ -247,14 +320,17 @@ export default function IncomePage() {
                     </p>
 
                     <button
-                      onClick={() =>
-                        showConfirm({
+                      onClick={async () => {
+                        const ok = await confirm({
                           title: "Delete Income",
-                          message:
-                            "Are you sure you want to delete this income record?",
-                          onConfirm: () => handleDelete(item.id),
-                        })
-                      }
+                          message: "Yakin ingin menghapus data ini?",
+                          variant: "danger",
+                        });
+
+                        if (!ok) return;
+
+                        await handleDelete(item.id);
+                      }}
                       className="mt-2 inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
                     >
                       <Trash2 size={15} />

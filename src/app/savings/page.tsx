@@ -98,6 +98,18 @@ export default function SavingsPage() {
     }
   };
 
+  const totalSaved = goals.reduce(
+    (sum, item) => sum + Number(item.current_amount),
+    0,
+  );
+
+  const totalTarget = goals.reduce(
+    (sum, item) => sum + Number(item.target_amount),
+    0,
+  );
+
+  const progress = totalTarget === 0 ? 0 : (totalSaved / totalTarget) * 100;
+
   return (
     <AuthGuard>
       <AppLayout>
@@ -176,12 +188,17 @@ export default function SavingsPage() {
               <div className="h-[220px] rounded-3xl bg-gradient-to-br from-[#16A34A] to-[#15803D] p-6 text-white flex flex-col justify-between">
                 <div>
                   <p className="text-sm opacity-80">Saving Progress</p>
-                  <h3 className="text-3xl font-bold mt-2">74%</h3>
+                  <h3 className="text-3xl font-bold mt-2">
+                    {progress.toFixed(1)}%
+                  </h3>
                 </div>
 
                 <div>
                   <div className="w-full h-3 rounded-full bg-white/20 overflow-hidden">
-                    <div className="w-[74%] h-full bg-white rounded-full" />
+                    <div
+                      className="h-full bg-white rounded-full"
+                      style={{ width: `${Math.min(progress, 100)}%` }}
+                    />
                   </div>
 
                   <p className="text-sm mt-3 opacity-90">

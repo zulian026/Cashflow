@@ -67,4 +67,24 @@ export const savingService = {
       throw new Error(error.message);
     }
   },
+
+  async addSavingAmount(goalId: string, amount: number) {
+    // ambil current dulu
+    const { data, error: fetchError } = await supabase
+      .from("saving_goals")
+      .select("current_amount")
+      .eq("id", goalId)
+      .single();
+
+    if (fetchError) throw new Error(fetchError.message);
+
+    const newAmount = Number(data.current_amount) + amount;
+
+    const { error } = await supabase
+      .from("saving_goals")
+      .update({ current_amount: newAmount })
+      .eq("id", goalId);
+
+    if (error) throw new Error(error.message);
+  },
 };

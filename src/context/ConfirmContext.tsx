@@ -5,11 +5,11 @@ import { createContext, useContext, useState, ReactNode } from "react";
 interface ConfirmOptions {
   title?: string;
   message?: string;
-  onConfirm: () => void;
+  variant?: "default" | "danger";
 }
 
 interface ConfirmContextType {
-  showConfirm: (options: ConfirmOptions) => void;
+  confirm: (options: ConfirmOptions) => Promise<boolean>;
 }
 
 const ConfirmContext = createContext<ConfirmContextType | null>(null);
@@ -18,34 +18,46 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
 
-  const showConfirm = (data: ConfirmOptions) => {
-    setOptions(data);
+  const [resolver, setResolver] = useState<((value: boolean) => void) | null>(
+    null,
+  );
+
+  const confirm = (options: ConfirmOptions): Promise<boolean> => {
+    setOptions(options);
     setOpen(true);
+
+    return new Promise((resolve) => {
+      setResolver(() => resolve);
+    });
   };
 
   const handleClose = () => {
+    resolver?.(false);
     setOpen(false);
     setOptions(null);
+    setResolver(null);
   };
 
   const handleConfirm = () => {
-    options?.onConfirm();
-    handleClose();
+    resolver?.(true);
+    setOpen(false);
+    setOptions(null);
+    setResolver(null);
   };
 
   return (
-    <ConfirmContext.Provider value={{ showConfirm }}>
+    <ConfirmContext.Provider value={{ confirm }}>
       {children}
 
       {open && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-xl">
             <h2 className="text-xl font-bold text-slate-900">
-              {options?.title || "Confirm Delete"}
+              {options?.title || "Confirm"}
             </h2>
 
             <p className="text-slate-500 mt-2">
-              {options?.message || "Are you sure you want to delete this item?"}
+              {options?.message || "Are you sure?"}
             </p>
 
             <div className="flex justify-end gap-3 mt-6">
@@ -60,7 +72,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 onClick={handleConfirm}
                 className="px-5 h-11 rounded-xl bg-red-500 text-white"
               >
-                Delete
+                Yes, Continue
               </button>
             </div>
           </div>

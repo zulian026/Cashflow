@@ -7,6 +7,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { useConfirm } from "@/context/ConfirmContext";
 import { ArrowUpCircle, Plus, Trash2 } from "lucide-react";
 import { categoryService, Category } from "@/services/categoryService";
+import { useToast } from "@/components/ToastProvider";
 
 interface ExpenseTransaction {
   id: string;
@@ -19,12 +20,16 @@ interface ExpenseTransaction {
 export default function ExpensePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<ExpenseTransaction[]>([]);
-  const { showConfirm } = useConfirm();
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
+
+  const getErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error ? error.message : fallback;
 
   useEffect(() => {
     const loadData = async () => {
@@ -35,15 +40,15 @@ export default function ExpensePage() {
         ]);
 
         setTransactions((transactionsData as ExpenseTransaction[]) || []);
-
-        // 🔥 hanya category expense
         setCategories(categoriesData.filter((c) => c.type === "expense"));
       } catch (error: unknown) {
-        if (error instanceof Error) {
-          alert(error.message);
-        } else {
-          alert("Terjadi kesalahan saat mengambil data expense");
-        }
+        showToast(
+          getErrorMessage(
+            error,
+            "Terjadi kesalahan saat mengambil data expense",
+          ),
+          "error",
+        );
       }
     };
 
@@ -56,17 +61,16 @@ export default function ExpensePage() {
 
       setTransactions((data as ExpenseTransaction[]) || []);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert("Terjadi kesalahan saat refresh data expense");
-      }
+      showToast(
+        getErrorMessage(error, "Terjadi kesalahan saat refresh data expense"),
+        "error",
+      );
     }
   };
 
   const handleAdd = async () => {
     if (!title || !amount) {
-      alert("Title & Amount wajib");
+      showToast("Title & Amount wajib", "error");
       return;
     }
 
@@ -83,27 +87,38 @@ export default function ExpensePage() {
       setCategory("");
       setNotes("");
 
+      showToast("Expense berhasil ditambahkan", "success");
+
       await refreshData();
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert("Terjadi kesalahan saat menambahkan expense");
-      }
+      showToast(
+        getErrorMessage(error, "Terjadi kesalahan saat menambahkan expense"),
+        "error",
+      );
     }
   };
 
   const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: "Delete Expense",
+      message: "Yakin ingin menghapus expense ini?",
+      variant: "danger",
+    });
+
+    if (!ok) return;
+
+    // 🔥 Optimistic UI
+    setTransactions((prev) => prev.filter((item) => item.id !== id));
+
     try {
       await transactionService.deleteTransaction("expense", id);
 
-      await refreshData();
+      showToast("Expense berhasil dihapus", "success");
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert("Terjadi kesalahan saat menghapus expense");
-      }
+      showToast(getErrorMessage(error, "Gagal menghapus expense"), "error");
+
+      // rollback kalau gagal
+      await refreshData();
     }
   };
 
@@ -246,14 +261,17 @@ export default function ExpensePage() {
                     </p>
 
                     <button
-                      onClick={() =>
-                        showConfirm({
+                      onClick={async () => {
+                        const ok = await confirm({
                           title: "Delete Expense",
-                          message:
-                            "Are you sure you want to delete this expense record?",
-                          onConfirm: () => handleDelete(item.id),
-                        })
-                      }
+                          message: "Yakin ingin menghapus data ini?",
+                          variant: "danger",
+                        });
+
+                        if (!ok) return;
+
+                        await handleDelete(item.id);
+                      }}
                       className="mt-2 inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
                     >
                       <Trash2 size={15} />

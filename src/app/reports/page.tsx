@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { reportService } from "@/services/reportService";
 import { pdfService } from "@/services/pdfService";
+import { useToast } from "@/components/ToastProvider";
 
 interface ChartData {
   month: string;
@@ -30,19 +31,28 @@ interface ReportData {
 }
 
 export default function ReportsPage() {
+  const { showToast } = useToast();
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [openPreview, setOpenPreview] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
 
   const [loading, setLoading] = useState(true);
 
   const handleDownloadPDF = async () => {
     try {
-      await pdfService.generateFinanceReport();
+      const blob = await pdfService.generateFinanceReport();
+
+      const url = URL.createObjectURL(blob);
+
+      setPreviewUrl(url);
+      setOpenPreview(true);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert("Terjadi kesalahan saat export PDF");
-      }
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat preview PDF",
+        "error",
+      );
     }
   };
 
@@ -218,6 +228,40 @@ export default function ReportsPage() {
             </div>
           </section>
         </main>
+        {openPreview && previewUrl && (
+          <div className="fixed inset-0 z-[999] bg-black/50 flex items-center justify-center">
+            <div className="w-[90%] h-[90%] bg-white rounded-2xl overflow-hidden flex flex-col">
+              {/* HEADER */}
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="font-semibold">Preview PDF</h2>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const link = document.createElement("a");
+                      link.href = previewUrl;
+                      link.download = "cashflow-report.pdf";
+                      link.click();
+                    }}
+                    className="px-4 py-2 bg-[#16A34A] text-white rounded-lg"
+                  >
+                    Download
+                  </button>
+
+                  <button
+                    onClick={() => setOpenPreview(false)}
+                    className="px-4 py-2 border rounded-lg"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              {/* PDF VIEW */}
+              <iframe src={previewUrl} className="flex-1 w-full" />
+            </div>
+          </div>
+        )}
       </AppLayout>
     </AuthGuard>
   );
