@@ -19,7 +19,7 @@ function getInitials(name: string) {
 }
 
 export default function CategoriesPage() {
-  const { showConfirm } = useConfirm();
+  const { confirm } = useConfirm();
   const [categories, setCategories] = useState<Category[]>([]);
   const [name, setName] = useState("");
   const [type, setType] = useState<"income" | "expense">("expense");
@@ -296,13 +296,17 @@ export default function CategoriesPage() {
 
                     {!cat.is_default ? (
                       <button
-                        onClick={() =>
-                          showConfirm({
+                        onClick={async () => {
+                          const ok = await confirm({
                             title: "Delete Category",
                             message: `Are you sure you want to delete "${cat.name}"?`,
-                            onConfirm: () => handleDelete(cat.id),
-                          })
-                        }
+                            variant: "danger",
+                          });
+
+                          if (ok) {
+                            handleDelete(cat.id);
+                          }
+                        }}
                         disabled={deletingId === cat.id}
                         className="flex items-center gap-1.5 px-3 h-8 rounded-[10px] text-xs font-semibold border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition disabled:opacity-50"
                       >
