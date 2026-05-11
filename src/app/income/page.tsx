@@ -25,6 +25,10 @@ interface SavingGoal {
   current_amount: number;
 }
 
+// Shared class untuk semua input & select agar konsisten
+const fieldClass =
+  "h-14 px-4 rounded-2xl border border-slate-200 bg-[#F8FAFC] outline-none focus:ring-2 focus:ring-[#16A34A]/20 focus:border-[#16A34A] transition w-full";
+
 export default function IncomePage() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
@@ -75,7 +79,6 @@ export default function IncomePage() {
   const refreshData = async () => {
     try {
       const data = await transactionService.getTransactions("income");
-
       setTransactions((data as IncomeTransaction[]) || []);
     } catch (error: unknown) {
       showToast(
@@ -100,7 +103,6 @@ export default function IncomePage() {
     }
 
     try {
-      // 1. simpan income
       await transactionService.addTransaction("income", {
         title,
         amount: incomeAmount,
@@ -108,12 +110,10 @@ export default function IncomePage() {
         notes,
       });
 
-      // 2. AUTO MASUK KE SAVING
       if (selectedGoal && savingValue > 0) {
         await savingService.addSavingAmount(selectedGoal, savingValue);
       }
 
-      // reset
       setTitle("");
       setAmount("");
       setCategory("");
@@ -122,7 +122,6 @@ export default function IncomePage() {
       setSavingAmount("");
 
       showToast("Income & saving berhasil ditambahkan", "success");
-
       await refreshData();
     } catch (error: unknown) {
       showToast(getErrorMessage(error, "Terjadi kesalahan"), "error");
@@ -140,9 +139,7 @@ export default function IncomePage() {
 
     try {
       await transactionService.deleteTransaction("income", id);
-
       showToast("Income berhasil dihapus", "success");
-
       await refreshData();
     } catch (error: unknown) {
       showToast(
@@ -181,7 +178,7 @@ export default function IncomePage() {
               <div className="grid md:grid-cols-2 gap-4">
                 <input
                   placeholder="Income Title"
-                  className="h-14 px-4 rounded-2xl border border-slate-200 bg-[#F8FAFC] outline-none focus:ring-2 focus:ring-[#16A34A]/20"
+                  className={fieldClass}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                 />
@@ -189,18 +186,18 @@ export default function IncomePage() {
                 <input
                   placeholder="Amount"
                   type="number"
-                  className="h-14 px-4 rounded-2xl border border-slate-200 bg-[#F8FAFC] outline-none focus:ring-2 focus:ring-[#16A34A]/20"
+                  className={fieldClass}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
 
+                {/* ✅ Dropdown Category — styling konsisten dengan input */}
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="h-14 px-4 rounded-2xl border border-slate-200 bg-[#F8FAFC]"
+                  className={fieldClass}
                 >
                   <option value="">Select Category</option>
-
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.name}>
                       {cat.name}
@@ -208,10 +205,11 @@ export default function IncomePage() {
                   ))}
                 </select>
 
+                {/* ✅ Dropdown Saving Goal — styling konsisten dengan input */}
                 <select
                   value={selectedGoal}
                   onChange={(e) => setSelectedGoal(e.target.value)}
-                  className="h-14 px-4 rounded-2xl border bg-[#F8FAFC]"
+                  className={fieldClass}
                 >
                   <option value="">Pilih Saving Goal (opsional)</option>
                   {savingGoals.map((goal) => (
@@ -221,25 +219,28 @@ export default function IncomePage() {
                   ))}
                 </select>
 
-                <input
-                  type="number"
-                  placeholder="Jumlah untuk ditabung (opsional)"
-                  value={savingAmount}
-                  onChange={(e) => setSavingAmount(e.target.value)}
-                  className="h-14 px-4 rounded-2xl border bg-[#F8FAFC]"
-                />
-                {amount && (
-                  <p className="text-sm text-slate-500">
-                    Sisa: Rp{" "}
-                    {(
-                      Number(amount || 0) - Number(savingAmount || 0)
-                    ).toLocaleString()}
-                  </p>
-                )}
+                <div className="md:col-span-2 grid md:grid-cols-2 gap-4 items-center">
+                  <input
+                    type="number"
+                    placeholder="Jumlah untuk ditabung (opsional)"
+                    value={savingAmount}
+                    onChange={(e) => setSavingAmount(e.target.value)}
+                    className={fieldClass}
+                  />
+
+                  {amount && (
+                    <p className="text-sm text-slate-500">
+                      Sisa: Rp{" "}
+                      {(
+                        Number(amount || 0) - Number(savingAmount || 0)
+                      ).toLocaleString()}
+                    </p>
+                  )}
+                </div>
 
                 <input
                   placeholder="Notes"
-                  className="h-14 px-4 rounded-2xl border border-slate-200 bg-[#F8FAFC] outline-none focus:ring-2 focus:ring-[#16A34A]/20"
+                  className={fieldClass}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
